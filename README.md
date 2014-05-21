@@ -20,21 +20,26 @@ Not working
 Usage
 -------
 Load the CFC
+
 	<cfset VARIABLES.SSQCF = createObject("component","sourcemod") />
 
 All functions return Structs if the connection succeeded, and the data that is collected	
 
 **Get players**
 This will get all players and their scores + play times.
+
 	<cfset VARIABLES.myPlayers = VARIABLES.SSQCF.A2S_INFO(ip="127.0.0.1",port="27015") />
+
 Returns within a struct an array with players.
 
 **Get server information**
 This will get information about the server, the amount of players, the host name, etc.
+
 	<cfset VARIABLES.myPlayers = VARIABLES.SSQCF.A2S_RULES(ip="127.0.0.1",port="27015") />
 	
 **Get server rules**
 This will get all convars that are available to everyone to see
+
 	<cfset VARIABLES.myPlayers = VARIABLES.SSQCF.A2S_RULES(ip="127.0.0.1",port="27015") />
 	
 Returns a struct with all the rules and their values
