@@ -1,8 +1,8 @@
-<cfcomponent displayname="SourceMod Server Queries and Rcon" hint="Used to get information from some types of gameservers">
+<cfcomponent displayname="Source Server Queries and Rcon" hint="Used to get information from some types of gameservers">
 	<!--- Might be good to know
 	Made by: Ivo de Bruijn
 
-	Description: This is a SourceMod Query CFC that talks to Source servers to get information.
+	Description: This is a Source Server Queries CFC that talks to Source servers to get information.
 
 	Contains: Multipacket Support, and OrangeBox games support for now
 
@@ -33,7 +33,11 @@
 		<cfset LOCAL.myNetAddress = createObject("java","java.net.InetAddress").getLocalHost() />
 		<!--- Remote address --->
 		<cfset LOCAL.remotePort = javaCast("int",ARGUMENTS.port) />
-		<cfset LOCAL.remoteInetAddress = createObject("java","java.net.InetAddress").getByName(javaCast("string",ARGUMENTS.ip))/>
+		<cftry>
+			<cfset LOCAL.remoteInetAddress = createObject("java","java.net.InetAddress").getByName(javaCast("string",ARGUMENTS.ip))/>
+			<cfcatch type="any" >
+			</cfcatch>
+		</cftry>
 
 		<!--- Create DatagramSocket - We need to listen to something --->
 		<cfset LOCAL.mySocket = createObject("java","java.net.DatagramSocket").init(
@@ -47,7 +51,7 @@
 					LOCAL.remotePort
 				)/>
 			<cfset LOCAL.mySocket.send(LOCAL.myPacket) />
-				
+
 			<!--- Wait for response --->
 			<cfset LOCAL.myResponse = createObject("java","java.net.DatagramPacket").init(charsetDecode(repeatString(" ", 1024),"utf-8"),javaCast("int",1024)) />
 			<!--- Wait 5 seconds --->
@@ -113,10 +117,10 @@
 				<cfset LOCAL.packetSize		= THIS.readShort(buffer=LOCAL.myData) />
 
 				<cfif IsNumeric(LOCAL.packetNumber) EQ true AND LOCAL.packetNumber GTE 0>
-					<cfset LOCAL.tempSortingArray[LOCAL.packetNumber + 1] = LOCAL.myData />	
+					<cfset LOCAL.tempSortingArray[LOCAL.packetNumber + 1] = LOCAL.myData />
 				</cfif>
-				
-				
+
+
 				<!--- Check if it's empty (32 characters) --->
 				<cfif LOCAL.myResponse.getLength() LT 1024>
 					<cfset LOCAL.shouldGetMore = false />
@@ -134,13 +138,13 @@
 				<cfset LOCAL.isMultiPacket = THIS.readByte(buffer=LOCAL.rc.dataByte) />
 				<cfset THIS.readByte(buffer=LOCAL.rc.dataByte) />
 				<cfset THIS.readByte(buffer=LOCAL.rc.dataByte) />
-				<cfset THIS.readByte(buffer=LOCAL.rc.dataByte) />				
+				<cfset THIS.readByte(buffer=LOCAL.rc.dataByte) />
 			</cfif>
 
 
 			<cfset LOCAL.rc.success = true />
 			<!--- Always close the socket --->
-			
+
 			<cfset LOCAL.mySocket.close() />
 
 			<cfcatch>
@@ -170,9 +174,9 @@
 		<cfset LOCAL.myChallengeNumber = THIS.getChallengeNumber(ip=ARGUMENTS.ip,port=ARGUMENTS.port,startHex="55") />
 
 		<!--- Get players --->
-		<cfif LOCAL.myChallengeNumber GT 0 >	
+		<cfif LOCAL.myChallengeNumber GT 0 >
 			<!--- Challange Header Byte (0x55)--->
-			<cfset LOCAL.myHeaderByte = THIS.convertHexToByte(myHex="55") />		
+			<cfset LOCAL.myHeaderByte = THIS.convertHexToByte(myHex="55") />
 			<cfset LOCAL.myEmptyByte = THIS.convertHexToByte(myHex="FF") />
 
 			<!--- Concat all bytes --->
@@ -187,16 +191,16 @@
 					LOCAL.myEmptyByte,
 					javaCast("int",0),
 					javaCast("int",1)
-				)/>			
+				)/>
 			</cfloop>
 
 			<!--- My Challenge Number --->
 			<cfset LOCAL.myByteBuffContents.put(LOCAL.myHeaderByte)/>
 			<!--- My Challenge Number --->
 			<cfset LOCAL.myByteBuffContents.putInt(javaCast("long",LOCAL.myChallengeNumber))/>
-			
+
 			<cfset LOCAL.myByteContentsArray = LOCAL.myByteBuffContents.array() />
-			<cfset LOCAL.myContents = THIS.doRequest(ip=ARGUMENTS.ip,port=ARGUMENTS.port,message=LOCAL.myByteContentsArray) />		
+			<cfset LOCAL.myContents = THIS.doRequest(ip=ARGUMENTS.ip,port=ARGUMENTS.port,message=LOCAL.myByteContentsArray) />
 
 			<cfif LOCAL.myContents.success EQ true>
 				<cfset LOCAL.myData =LOCAL.myContents.dataByte />
@@ -204,8 +208,8 @@
 				<cfset LOCAL.myHeader = Chr(THIS.readByte(buffer=LOCAL.myData)) />
 
 				<cfif LOCAL.myHeader EQ "D">
-					
-				
+
+
 					<cfset LOCAL.rc.PlayerAmount = THIS.readByte(buffer=LOCAL.myData) />
 
 					<cfloop from="1" to="#LOCAL.rc.PlayerAmount#" index="LOCAL.i">
@@ -221,9 +225,9 @@
 
 						<!--- Player didn't connect yet ignore it --->
 						<cfif Len(Trim(LOCAL.playerStruct['name'])) GT 0 >
-							<cfset arrayAppend(LOCAL.rc.players,LOCAL.playerStruct) />	
+							<cfset arrayAppend(LOCAL.rc.players,LOCAL.playerStruct) />
 						</cfif>
-					</cfloop>				
+					</cfloop>
 				</cfif>
 			</cfif>
 		</cfif>
@@ -239,7 +243,7 @@
 		<cfset var LOCAL = structNew() />
 		<cfset LOCAL.rc = 0 />
 		<!--- Challange Header Byte (0x55)--->
-		<cfset LOCAL.myHeaderByte = THIS.convertHexToByte(myHex=ARGUMENTS.startHex) />		
+		<cfset LOCAL.myHeaderByte = THIS.convertHexToByte(myHex=ARGUMENTS.startHex) />
 		<cfset LOCAL.myEmptyByte = THIS.convertHexToByte(myHex="FF") />
 
 		<!--- Concat all bytes --->
@@ -255,7 +259,7 @@
 				LOCAL.myEmptyByte,
 				javaCast("int",0),
 				javaCast("int",1)
-			)/>			
+			)/>
 		</cfloop>
 
 		<!--- T --->
@@ -270,18 +274,18 @@
 				LOCAL.myEmptyByte,
 				javaCast("int",0),
 				javaCast("int",1)
-			)/>			
-		</cfloop>		
+			)/>
+		</cfloop>
 
 
 		<cfset LOCAL.myByteContentsArray = LOCAL.myByteBuffContents.array() />
-		<cfset LOCAL.myContents = THIS.doRequest(ip=ARGUMENTS.ip,port=ARGUMENTS.port,message=LOCAL.myByteContentsArray) />		
+		<cfset LOCAL.myContents = THIS.doRequest(ip=ARGUMENTS.ip,port=ARGUMENTS.port,message=LOCAL.myByteContentsArray) />
 		<cfset LOCAL.myData = LOCAL.myContents.dataByte />
 
 		<!--- Strip off useless bytes --->
 		<cfset LOCAL.myHeader = Chr(THIS.readByte(buffer=LOCAL.myData)) />
 
-		
+
 		<!--- We can get ourselfs a challange number --->
 		<cfif LOCAL.myContents.success EQ true AND LOCAL.myHeader EQ "A">
 			<cfset LOCAL.rc =  THIS.readLong(buffer=LOCAL.myData) />
@@ -304,9 +308,9 @@
 		<cfset LOCAL.myChallengeNumber = THIS.getChallengeNumber(ip=ARGUMENTS.ip,port=ARGUMENTS.port,startHex="56") />
 
 		<!--- Get players --->
-		<cfif LOCAL.myChallengeNumber GT 0 >	
+		<cfif LOCAL.myChallengeNumber GT 0 >
 			<!--- Challange Header Byte (0x55)--->
-			<cfset LOCAL.myHeaderByte = THIS.convertHexToByte(myHex="56") />		
+			<cfset LOCAL.myHeaderByte = THIS.convertHexToByte(myHex="56") />
 			<cfset LOCAL.myEmptyByte = THIS.convertHexToByte(myHex="FF") />
 
 			<!--- Concat all bytes --->
@@ -321,7 +325,7 @@
 					LOCAL.myEmptyByte,
 					javaCast("int",0),
 					javaCast("int",1)
-				)/>			
+				)/>
 			</cfloop>
 
 			<!--- My Challenge Number --->
@@ -331,11 +335,11 @@
 
 			<cfset LOCAL.myByteContentsArray = LOCAL.myByteBuffContents.array() />
 
-			<cfset LOCAL.myContents = THIS.doRequest(ip=ARGUMENTS.ip,port=ARGUMENTS.port,message=LOCAL.myByteContentsArray) />		
+			<cfset LOCAL.myContents = THIS.doRequest(ip=ARGUMENTS.ip,port=ARGUMENTS.port,message=LOCAL.myByteContentsArray) />
 			<cfif LOCAL.myContents.success EQ true>
 				<cfset LOCAL.rc.connected = true />
 				<cfset LOCAL.myData = LOCAL.myContents.dataByte />
-				<cfset LOCAL.myHeader = Chr(THIS.readByte(buffer=LOCAL.myData)) /> 
+				<cfset LOCAL.myHeader = Chr(THIS.readByte(buffer=LOCAL.myData)) />
 				<cfset LOCAL.rc.amountOfRules = THIS.readShort(buffer=LOCAL.myData) />
 
 				<cfset LOCAL.rc.rules = structNew() />
@@ -350,7 +354,7 @@
 						<cfif Len(Trim(LOCAL.ruleName)) GT 0 AND Len(Trim(LOCAL.ruleVariable))>
 							<cfset LOCAL.rc.rules[LOCAL.ruleName] = LOCAL.ruleVariable />
 						</cfif>
-					</cfloop>	
+					</cfloop>
 					<cfset LOCAL.rc.amountOfRules = structCount(LOCAL.rc.rules)	 />
 				</cfif>
 			</cfif>
@@ -389,7 +393,7 @@
 				LOCAL.emptyByte,
 				javaCast("int",0),
 				javaCast("int",1)
-			)/>			
+			)/>
 		</cfloop>
 
 		<!--- T --->
@@ -404,13 +408,13 @@
 			charsetDecode(LOCAL.myMessage,'utf-8'),
 			javaCast("int",0),
 			javaCast("int",Len(LOCAL.myMessage))
-		)/>		
+		)/>
 		<!--- Terminator --->
 		<cfset LOCAL.myByteBuffContents.Put(
 			LOCAL.nulTerminator,
 			javaCast("int",0),
 			javaCast("int",1)
-		)/>	
+		)/>
 		<!--- Byte array :) --->
 		<cfset LOCAL.myByteContentsArray = LOCAL.myByteBuffContents.array() />
 		<cfset LOCAL.myContents = THIS.doRequest(ip=ARGUMENTS.ip,port=ARGUMENTS.port,message=LOCAL.myByteContentsArray) />
@@ -419,28 +423,23 @@
 		<cfset structDelete(LOCAL,"myByteBuffer") />
 
 		<cfset LOCAL.myData = LOCAL.myContents.dataByte />
-
 		<!--- Strip off useless bytes --->
-		<cfset LOCAL.uselessByte = THIS.readByte(buffer=LOCAL.myData)/>
-		<cfset LOCAL.uselessByte = THIS.readByte(buffer=LOCAL.myData)/>
-		<cfset LOCAL.uselessByte = THIS.readByte(buffer=LOCAL.myData)/>
-		<cfset LOCAL.uselessByte = THIS.readByte(buffer=LOCAL.myData)/>
 
 		<cfset LOCAL.rc.header 		= Chr(THIS.readByte(buffer=LOCAL.myData)) />
 		<cfset LOCAL.rc.protocol 	= THIS.readByte(buffer=LOCAL.myData) />
 		<cfset LOCAL.rc.name 		= THIS.readString(buffer=LOCAL.myData) />
 		<cfset LOCAL.rc.map 		= THIS.readString(buffer=LOCAL.myData) />
-		<cfset LOCAL.rc.folder 		= THIS.readString(buffer=LOCAL.myData) /> 
-		<cfset LOCAL.rc.game 		= THIS.readString(buffer=LOCAL.myData) /> 
+		<cfset LOCAL.rc.folder 		= THIS.readString(buffer=LOCAL.myData) />
+		<cfset LOCAL.rc.game 		= THIS.readString(buffer=LOCAL.myData) />
 
-		<cfset LOCAL.rc.gameid 		= THIS.readShort(buffer=LOCAL.myData) /> 
-		<cfset LOCAL.rc.players 	= THIS.readByte(buffer=LOCAL.myData) /> 
-		<cfset LOCAL.rc.maxPlayers 	= THIS.readByte(buffer=LOCAL.myData) /> 
-		<cfset LOCAL.rc.bots 		= THIS.readByte(buffer=LOCAL.myData) /> 
-		<cfset LOCAL.rc.servertype 	= Chr(THIS.readByte(buffer=LOCAL.myData)) /> 
-		<cfset LOCAL.rc.environment	= Chr(THIS.readByte(buffer=LOCAL.myData)) /> 
-		<cfset LOCAL.rc.visibility 	= THIS.readByte(buffer=LOCAL.myData) /> 
-		<cfset LOCAL.rc.vac 		= THIS.readByte(buffer=LOCAL.myData) /> 
+		<cfset LOCAL.rc.gameid 		= THIS.readShort(buffer=LOCAL.myData) />
+		<cfset LOCAL.rc.players 	= THIS.readByte(buffer=LOCAL.myData) />
+		<cfset LOCAL.rc.maxPlayers 	= THIS.readByte(buffer=LOCAL.myData) />
+		<cfset LOCAL.rc.bots 		= THIS.readByte(buffer=LOCAL.myData) />
+		<cfset LOCAL.rc.servertype 	= Chr(THIS.readByte(buffer=LOCAL.myData)) />
+		<cfset LOCAL.rc.environment	= Chr(THIS.readByte(buffer=LOCAL.myData)) />
+		<cfset LOCAL.rc.visibility 	= THIS.readByte(buffer=LOCAL.myData) />
+		<cfset LOCAL.rc.vac 		= THIS.readByte(buffer=LOCAL.myData) />
 
 		<!--- Coldfusion doesn't support Byte comparison by default so I hope this is correct --->
 
@@ -468,19 +467,19 @@
 				<cfset LOCAL.rc.steamid = LOCAL.try2>
 			<cfelse>
 				<cfset LOCAL.rc.steamid = LOCAL.try1 />
-			</cfif>			
+			</cfif>
 			<cfset THIS.readByte(buffer=LOCAL.myData) />
 		</cfif>
 		<cfif LOCAL.myEDFByte GTE LOCAL.my0x40>
 			<cfset LOCAL.rc.souretvport = THIS.readShort(buffer=LOCAL.myData)/>
 			<cfset LOCAL.rc.SourceTvName = THIS.readString(buffer=LOCAL.myData)/>
-		</cfif>				
+		</cfif>
 		<cfif LOCAL.myEDFByte GTE LOCAL.my0x20>
 			<cfset LOCAL.rc.keywords = THIS.readString(buffer=LOCAL.myData)/>
-		</cfif>				
+		</cfif>
 		<cfif LOCAL.myEDFByte GTE LOCAL.my0x01>
 			<cfset LOCAL.rc.GameId64bit = THIS.readLongLong(buffer=LOCAL.myData)/>
-		</cfif>			
+		</cfif>
 
 		<cfif LOCAL.myContents.success EQ TRUE>
 			<cfreturn LOCAL.rc />
@@ -590,7 +589,7 @@
 		<cfset LOCAL.myByteOrder = createObject("java","java.nio.ByteOrder") />
 
 		<cfset LOCAL.myByteBuffContents = LOCAL.myByteBuffer.Allocate(2) />
-		<cfset LOCAL.myByteBuffContents.order(LOCAL.myByteOrder.LITTLE_ENDIAN) />		
+		<cfset LOCAL.myByteBuffContents.order(LOCAL.myByteOrder.LITTLE_ENDIAN) />
 		<cfset LOCAL.myByteBuffContents.Put(
 			javaCast("byte[]",[javaCast("int",ARGUMENTS.buffer[1])]),
 			javaCast("int",0),
@@ -618,7 +617,7 @@
 		<cfset LOCAL.myByteOrder = createObject("java","java.nio.ByteOrder") />
 
 		<cfset LOCAL.myByteBuffContents = LOCAL.myByteBuffer.Allocate(8) />
-		<cfset LOCAL.myByteBuffContents.order(LOCAL.myByteOrder.LITTLE_ENDIAN) />		
+		<cfset LOCAL.myByteBuffContents.order(LOCAL.myByteOrder.LITTLE_ENDIAN) />
 		<cfset LOCAL.myBytes = arrayNew(1) />
 
 		<!--- Do some cool stuff with flipping in the bytearray --->
@@ -644,7 +643,7 @@
 		<cfset LOCAL.myByteOrder = createObject("java","java.nio.ByteOrder") />
 
 		<cfset LOCAL.myByteBuffContents = LOCAL.myByteBuffer.Allocate(4) />
-		<cfset LOCAL.myByteBuffContents.order(LOCAL.myByteOrder.LITTLE_ENDIAN) />		
+		<cfset LOCAL.myByteBuffContents.order(LOCAL.myByteOrder.LITTLE_ENDIAN) />
 		<cfset LOCAL.myBytes = arrayNew(1) />
 
 		<!--- Do some cool stuff with flipping in the bytearray --->
@@ -669,19 +668,19 @@
 		<cfset LOCAL.myByteOrder = createObject("java","java.nio.ByteOrder") />
 
 		<cfset LOCAL.myByteBuffContents = LOCAL.myByteBuffer.Allocate(8) />
-		<cfset LOCAL.myByteBuffContents.order(LOCAL.myByteOrder.LITTLE_ENDIAN) />	
+		<cfset LOCAL.myByteBuffContents.order(LOCAL.myByteOrder.LITTLE_ENDIAN) />
 		<cfloop from="1" to="8" index="LOCAL.i">
 			<cfset LOCAL.myByteBuffContents.Put(
 			javaCast("byte[]",[javaCast("int",ARGUMENTS.buffer[1])])
 			)/>
 			<cfset arrayDeleteAt(ARGUMENTS.buffer,1) />
-		</cfloop>		
+		</cfloop>
 
-		
+
 		<cfset LOCAL.rc = LOCAL.myByteBuffContents.getLong(0) />
 		<cfreturn  LOCAL.rc />
 
-	</cffunction>	
+	</cffunction>
 
 
 	<cffunction name="readChar" returntype="numeric" access="private" output="false">
@@ -703,7 +702,7 @@
 	<cffunction name="cutByteArrayToString" returntype="string" access="private">
 		<cfargument name="byteArray" 	type="any" required="true" />
 		<cfargument name="startPos" 	type="numeric" required="true" />
-		<cfargument name="endPos" 		type="numeric" required="true" />		
+		<cfargument name="endPos" 		type="numeric" required="true" />
 
 		<cfset var LOCAL = structNew() />
 		<cfset LOCAL.rc = "" />
@@ -715,7 +714,7 @@
 				javaCast("byte[]",[javaCast("int",ARGUMENTS.byteArray[LOCAL.i])]),
 				javaCast("int",0),
 				javaCast("int",1)
-			)/>				
+			)/>
 		</cfloop>
 		<cfreturn charsetEncode(LOCAL.myByteBuffContents.array(),"utf-8") />
 	</cffunction>
@@ -740,10 +739,10 @@
 			javaCast("byte[]",[javaCast("int",ARGUMENTS.byteArray[LOCAL.endPos])]),
 			javaCast("int",0),
 			javaCast("int",1)
-		)/>						
-		
+		)/>
+
 		<cfreturn LOCAL.myByteBuffContents.getShort(0) />
-	</cffunction>	
+	</cffunction>
 
 	<!--- Helper function to make me find the next string end --->
 	<cffunction name="checkForNextStringEnd" returntype="numeric" access="private">
