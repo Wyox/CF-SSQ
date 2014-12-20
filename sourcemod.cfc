@@ -11,7 +11,7 @@
 	- Add support for GoldSrc
 	- Add compression support (and change to the proper checks for it)
 
-	VERSION: 0.01 ALPHA
+	VERSION: 0.02 ALPHA
 	 --->
 	<cffunction name="init" returntype="any" output="false">
 		<cfreturn THIS />
@@ -44,7 +44,7 @@
 		
 		<!--- Our source --->
 		<cfset LOCAL.source = structNew() />
-		<cfset LOCAL.source.ip = createObject("java","java.net.InetAddress").getByName(javaCast("string","10.0.2.15")) />
+		<cfset LOCAL.source.ip = createObject("java","java.net.InetAddress").getByName(javaCast("string","localhost")) />
 		<cfset LOCAL.source.port = javaCast("int",ARGUMENTS.port + 10000 + ceiling(RandRange(1,1000))) />
 		
 		<!--- To which server are we going to connect --->
@@ -198,64 +198,38 @@
 		<cfif LOCAL.myChallengeNumber GT 0 >
 
 
-			<cfset LOCAL.challangeAsHex = FormatBaseN(LOCAL.myChallengeNumber,16) />
-			<cfdump var="#LOCAL#"/><cfabort/>			
-			<cfset LOCAL.message = "FFFFFFFF55" />			
-<!---
+			<cfset LOCAL.challangeAsHex = decimalToHex(LOCAL.myChallengeNumber) />
+
+			<cfset LOCAL.myMessage = "FFFFFFFF55#LOCAL.challangeAsHex#" />			
+			
+
 			<cfset LOCAL.myBinMessage = binaryDecode(LOCAL.myMessage, 'hex') />
+
 			<cfset LOCAL.myContents = doRequest(ip=ARGUMENTS.ip,port=ARGUMENTS.port,message=LOCAL.myBinMessage) />
---->
-
 			
-			
-			<!--- Challange Header Byte (0x55)--->
-			<cfset LOCAL.myHeaderByte = convertHexToByte(myHex="55") />
-			<cfset LOCAL.myEmptyByte = convertHexToByte(myHex="FF") />
 
-			<!--- Concat all bytes --->
-			<cfset LOCAL.myByteBuffer = createObject("java","java.nio.ByteBuffer") />
-			<!--- We need FF FF FF FF HEADERBYTE MESSAGEBYTES TERMINATOR --->
-			<cfset LOCAL.myByteLength = 9 />
-			<cfset LOCAL.myByteBuffContents = LOCAL.myByteBuffer.Allocate(LOCAL.myByteLength) />
-
-			<!--- FF --->
-			<cfloop from="1" to="4" index="LOCAL.i">
-				<cfset LOCAL.myByteBuffContents.Put(
-					LOCAL.myEmptyByte,
-					javaCast("int",0),
-					javaCast("int",1)
-				)/>
-			</cfloop>
-
-			<!--- My Challenge Number --->
-			<cfset LOCAL.myByteBuffContents.put(LOCAL.myHeaderByte)/>
-			<!--- My Challenge Number --->
-			<cfset LOCAL.myByteBuffContents.putInt(javaCast("long",LOCAL.myChallengeNumber))/>
-
-			<cfset LOCAL.myByteContentsArray = LOCAL.myByteBuffContents.array() />
-			<cfset LOCAL.myContents = doRequest(ip=ARGUMENTS.ip,port=ARGUMENTS.port,message=LOCAL.myByteContentsArray) />
 
 			<cfif LOCAL.myContents.success EQ true>
 				<cfset LOCAL.rc.connected = true />
-				<cfset LOCAL.myData =LOCAL.myContents.dataByte />
 				<!--- Strip off useless bytes --->
-				<cfset LOCAL.myHeader = Chr(readByte(buffer=LOCAL.myData)) />
+				<cfset LOCAL.myHeader = stripByte(myHex=LOCAL.myContents.hexObject,type="char") />
+
+
 
 				<cfif LOCAL.myHeader EQ "D">
 
 
-					<cfset LOCAL.rc.PlayerAmount = readByte(buffer=LOCAL.myData) />
+					<cfset LOCAL.rc.PlayerAmount = stripByte(myHex=LOCAL.myContents.hexObject,type='numeric') />
+
 
 					<cfloop from="1" to="#LOCAL.rc.PlayerAmount#" index="LOCAL.i">
 						<cfset LOCAL.playerStruct = structNew() />
-						<cfset LOCAL.playerStruct['index'] = readByte(buffer=LOCAL.myData)/>
-						<cfset LOCAL.playerStruct['name'] = readString(buffer=LOCAL.myData)/>
+						<cfset LOCAL.playerStruct['index'] = stripByte(myHex=LOCAL.myContents.hexObject,type='numeric')/>
+						<cfset LOCAL.playerStruct['name'] = stripString(myHex=LOCAL.myContents.hexObject)/>
 
-						<cfset LOCAL.playerStruct['score'] = readShort(buffer=LOCAL.myData)/>
+						<cfset LOCAL.playerStruct['score'] = stripLong(myHex=LOCAL.myContents.hexObject)/>
 						<cfset LOCAL.playerStruct['tryFloat'] = arrayNew(1) />
-						<cfset readByte(buffer=LOCAL.myData)/>
-						<cfset readByte(buffer=LOCAL.myData)/>
- 						<cfset LOCAL.playerStruct['duration'] = readFloat(buffer=LOCAL.myData)/>
+ 						<cfset LOCAL.playerStruct['duration'] = stripFloat(myHex=LOCAL.myContents.hexObject)/>
 
 						<!--- Player didn't connect yet ignore it --->
 						<cfif Len(Trim(LOCAL.playerStruct['name'])) GT 0 >
@@ -283,9 +257,10 @@
 		<cfset LOCAL.myBinMessage = binaryDecode(LOCAL.myMessage, 'hex') />
 		<cfset LOCAL.myContents = doRequest(ip=ARGUMENTS.ip,port=ARGUMENTS.port,message=LOCAL.myBinMessage) />
 		
+		
 		<!--- Strip off useless bytes --->
 		<cfset LOCAL.myHeader = stripByte(myHex=LOCAL.myContents.hexObject,type="char") />
-
+		
 
 		<!--- We can get ourselfs a challange number --->
 		<cfif LOCAL.myContents.success EQ true AND LOCAL.myHeader EQ "A">
@@ -465,6 +440,58 @@
 
 	<!--- Private Methods - Usually sloppy helper functions to things I don't know about java --->
 
+	<!--- Heximal values beyond 6 characters are wrongly calculated by either java or coldfusion --->
+	<cffunction name="hexToDecimal" returnType="numeric" access="private" output="false">
+		<cfargument name="hex" type="string" required="true" />
+		<cfargument name="signed" type="boolean" required="false" default="#false#" />
+		
+		<cfset var LOCAL = structNew() />
+		<cfset LOCAL.hexStruct = structNew() />
+		<cfset LOCAL.arrayTemp = ListToArray(ARGUMENTS.hex,'') />
+		<cfset LOCAL.loopLength = Len(ARGUMENTS.hex) />
+		<cfset LOCAL.rc = 0 />
+		<cfloop from="1" to="#LOCAL.loopLength#" index="LOCAL.i">
+			<cfset LOCAL.myHexChar = LOCAL.arrayTemp[LOCAL.i] />
+			<!--- This works so far.... --->
+			<cfset LOCAL.myNumber = InputBaseN(LOCAL.myHexChar,'16') />
+			<cfset LOCAL.rc = (LOCAL.myNumber*16^(LOCAL.loopLength-LOCAL.i)) + LOCAL.rc />
+		</cfloop>
+		
+		<cfreturn LOCAL.rc />
+			
+	</cffunction>
+
+	<cffunction name="decimalToHex" returnType="string" access="private" output="false">
+		<cfargument name="decimal" type="string" required="true" />
+		<cfargument name="signed" type="boolean" required="false" default="#false#" />
+		<cfset var LOCAL = structNew() />
+		<cfset LOCAL.rc = "" />
+		<cfset LOCAL.stillSearch = true />
+		<cfset LOCAL.counter = 0 />
+		<cfset LOCAL.myStuff = ARGUMENTS.decimal />
+		
+		<cfloop condition="LOCAL.stillSearch">
+			<cfif LOCAL.myStuff LTE 16 >
+				<cfset LOCAL.stillSearch = false />
+			</cfif>
+			
+			<cfset LOCAL.myValue = LOCAL.myStuff / 16 />
+			<cfset LOCAL.someThingRemainder = Int(LOCAL.myValue) />
+			<cfset LOCAL.remainder = LOCAL.myValue - LOCAL.someThingRemainder />
+			<cfset LOCAL.myStuff = LOCAL.someThingRemainder />
+			<cfset LOCAL.myHex = UCase(FormatBaseN(LOCAL.remainder * 16,16)) />
+			<cfset LOCAL.rc = LOCAL.myHex & LOCAL.rc />	
+			
+		</cfloop>
+		
+
+		
+		<cfreturn LOCAL.rc />
+			
+	</cffunction>
+
+
+
 	<cffunction name="signedToUnsigned" returnType="numeric" access="private" output="false">
 		<cfargument name="number" type="numeric" required="true" />
 		<cfargument name="offset" type="numeric" required="false" default="128" hint="half your int length" />
@@ -587,8 +614,6 @@
 		<cfset LOCAL.myHexPart = stripByte(myHex=ARGUMENTS.myHex,signed=true,type="numeric") />
 		<cfset LOCAL.mySecondHexPart = stripByte(myHex=ARGUMENTS.myHex,signed=true,type="numeric") />
 
-
-
 		<!--- Java Objects for a proper short... I have no clue how to do it otherwise, but these give the proper results		 --->
 		<cfset LOCAL.myByteBuffer = createObject("java","java.nio.ByteBuffer") />
 		<cfset LOCAL.myByteOrder = createObject("java","java.nio.ByteOrder") />
@@ -618,14 +643,26 @@
 				
 		<cfset LOCAL.rc = 0 />
 		<cfset LOCAL.myHex = stripHelper(myHex=ARGUMENTS.myHex,length=4) />
+		<cfset LOCAL.rc = hexToDecimal(hex=LOCAL.myHex,signed=true) />
 
-		
-
-		<cfdump var="#InputBaseN(LOCAL.myHex,16)#"/>
-		<Cfabort/>
-		<cfset LOCAL.rc = LOCAL.myByteBuffContents.getLong(0)  />
-		<cfreturn precisionEvaluate(LOCAL.rc - 1) />
+		<cfreturn LOCAL.rc />
 	</cffunction>
+
+	<cffunction name="stripFloat" returnType="numeric" access="private" output="false" >
+		<cfargument name="myHex" type="struct" required="true" />
+				
+				
+
+		<cfset LOCAL.rc = 0 />
+		<cfset LOCAL.myHex = stripHelper(myHex=ARGUMENTS.myHex,length=4) />
+		<!--- Figure out how to process floats.. I have no idea at this point --->
+	
+
+
+		<cfreturn LOCAL.rc />
+	</cffunction>
+	
+	
 
 	<!--- Documentation calls it long where it should be an INT (4Bytes instead of 8 Bytes) --->
 	<cffunction name="readFloat" returntype="numeric" access="private" output="false">
@@ -656,20 +693,11 @@
 		<cfargument name="myHex" type="struct" required="true" />
 				
 		<cfset LOCAL.rc = 0 />
-		<cfset LOCAL.myByteBuffer = createObject("java","java.nio.ByteBuffer") />
-		<cfset LOCAL.myByteOrder = createObject("java","java.nio.ByteOrder") />
+		
+		<cfset LOCAL.myHex = stripHelper(myHex=ARGUMENTS.myHex,length=8) />
+		<cfset LOCAL.rc = hexToDecimal(hex=LOCAL.myHex,signed=false) />
 
-		<cfset LOCAL.myByteBuffContents = LOCAL.myByteBuffer.Allocate(8) />
-		<cfset LOCAL.myByteBuffContents.order(LOCAL.myByteOrder.LITTLE_ENDIAN) />
-		<cfloop from="1" to="8" index="LOCAL.i">
-			<cfset LOCAL.myByteBuffContents.Put(
-				javaCast("byte[]",[javaCast("int",stripByte(myHex=ARGUMENTS.myHex,signed=true,type='numeric'))])
-			)/>							
-		</cfloop>
-
-
-		<cfset LOCAL.rc = LOCAL.myByteBuffContents.getLong(0)  />
-		<cfreturn precisionEvaluate(LOCAL.rc - 1) />
+		<cfreturn LOCAL.rc />
 	</cffunction>
 
 	<!--- Documentation calls it long where it should be an INT (4Bytes instead of 8 Bytes) --->
@@ -677,21 +705,10 @@
 		<cfargument name="buffer" type="any" required="true" />
 		<cfset var LOCAL = structNew() />
 
-		<cfset LOCAL.rc = "" />
-		<cfset LOCAL.myByteBuffer = createObject("java","java.nio.ByteBuffer") />
-		<cfset LOCAL.myByteOrder = createObject("java","java.nio.ByteOrder") />
+		<cfset LOCAL.rc = 0 />
+		<cfset LOCAL.myHex = stripHelper(myHex=ARGUMENTS.myHex,length=4) />
+		<cfset LOCAL.rc = hexToDecimal(hex=LOCAL.myHex,signed=true) />
 
-		<cfset LOCAL.myByteBuffContents = LOCAL.myByteBuffer.Allocate(8) />
-		<cfset LOCAL.myByteBuffContents.order(LOCAL.myByteOrder.LITTLE_ENDIAN) />
-		<cfloop from="1" to="8" index="LOCAL.i">
-			<cfset LOCAL.myByteBuffContents.Put(
-			javaCast("byte[]",[javaCast("int",ARGUMENTS.buffer[1])])
-			)/>
-			<cfset arrayDeleteAt(ARGUMENTS.buffer,1) />
-		</cfloop>
-
-
-		<cfset LOCAL.rc = LOCAL.myByteBuffContents.getLong(0) />
 		<cfreturn	 LOCAL.rc />
 
 	</cffunction>
